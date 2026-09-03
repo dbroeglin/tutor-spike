@@ -36,7 +36,7 @@ Many commands accept `file` or `path` to target a file. Without either, the acti
 
 ## Vault targeting
 
-Commands target the most recently focused vault by default. Use `vault=<name>` as the first parameter to target a specific vault:
+Commands target the most recently focused vault by default. Use `vault=<name>` as the *first* parameter to target a specific vault:
 
 ```bash
 obsidian vault="My Vault" search query="test"
