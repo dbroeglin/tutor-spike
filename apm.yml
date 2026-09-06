@@ -17,4 +17,9 @@ dependencies:
     - kepano/obsidian-skills/skills/obsidian-markdown
   mcp: []
 includes: auto
-scripts: {}
+scripts:
+  # Setup-time / diagnostic commands, run by a human via `apm run <name>`.
+  # APM is NOT executing when a tutoring session starts, so this is deliberately
+  # not the session hook -- AGENTS.md is. Same script, honest trigger.
+  doctor: uv run scripts/check_env.py
+  init: uv run scripts/check_env.py --init
