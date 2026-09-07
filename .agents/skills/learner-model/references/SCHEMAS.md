@@ -166,7 +166,8 @@ course: Differential Equations    # canonical name; the join key used everywhere
 status: active                    # planned | active | paused | complete
 started: 2026-09-03
 primary_domains:                  # domains this course mainly exercises — NOT folders
-  - Differential Equations
+  - Ordinary Differential Equations   # note: NOT "Differential Equations" — that is the
+                                      # course name, and a domain may never reuse one
   - Linear Algebra
 prerequisite_domains:
   - Calculus
