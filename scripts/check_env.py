@@ -110,12 +110,59 @@ def scan(vault: Path) -> dict:
     }
 
 
+def read_frontmatter_lists(path: Path, keys) -> dict:
+    """Read the list-valued frontmatter keys named in ``keys``.
+
+    ``read_frontmatter`` deliberately returns only top-level scalars, so it
+    cannot see ``primary_domains``. Both block lists and inline ``[a, b]``
+    lists are handled; anything else is ignored rather than half-parsed.
+    """
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {}
+    match = FRONTMATTER.match(text)
+    if not match:
+        return {}
+    found = {}
+    current = None
+    for line in match.group(1).splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if not line[0].isspace():
+            key, sep, value = line.partition(":")
+            key = key.strip()
+            value = value.strip()
+            current = key if (sep and key in keys) else None
+            if current:
+                found[current] = []
+                if value.startswith("[") and value.endswith("]"):
+                    found[current] = [
+                        v.strip().strip("\"'")
+                        for v in value[1:-1].split(",") if v.strip()
+                    ]
+                    current = None
+        elif current and stripped.startswith("- "):
+            found[current].append(stripped[2:].strip().strip("\"'"))
+    return found
+
+
 def check_domain_collisions(vault: Path) -> list:
     """Enforce the invariant that course names are never domain names.
 
-    A domain folder that matches a course folder means someone filed a bug
-    under the course that surfaced it. That silently breaks cross-course
-    recurrence detection, which is the whole point of the domain taxonomy.
+    Two failure modes, caught at different moments:
+
+    1. A domain *folder* matching a course folder -- a bug was already filed
+       under the course that surfaced it.
+    2. A course *declaring* one of its own names as a domain. This is the
+       upstream cause, and it is caught before any folder exists, because the
+       folder is only created the first time a misconception is filed. Waiting
+       for (1) means the vault reports healthy right up until the moment real
+       data lands in the wrong place.
+
+    Either way cross-course recurrence detection is broken, which is the whole
+    point of the domain taxonomy.
     """
     courses = vault / "Courses"
     if not courses.is_dir():
@@ -129,6 +176,20 @@ def check_domain_collisions(vault: Path) -> list:
         for domain in root.iterdir():
             if domain.is_dir() and domain.name in course_names:
                 collisions.append("Learner Model/%s/%s" % (group, domain.name))
+    keys = ("primary_domains", "prerequisite_domains")
+    for note in sorted(courses.rglob("*.md")):
+        if ".obsidian" in note.parts:
+            continue
+        if read_frontmatter(note).get("type") != "course":
+            continue
+        declared = read_frontmatter_lists(note, keys)
+        for key in keys:
+            for domain in declared.get(key, []):
+                if domain in course_names:
+                    collisions.append(
+                        "%s: %s declares course name %r as a domain"
+                        % (note.name, key, domain)
+                    )
     return collisions
 
 
@@ -179,7 +240,7 @@ def probe(vault: Path) -> dict:
     checks["domain_course_collisions"] = collisions
     if collisions:
         missing.append(
-            "INVARIANT VIOLATION: domain folder shares a course name -- "
+            "INVARIANT VIOLATION: course name used as a domain -- "
             + ", ".join(collisions)
         )
 

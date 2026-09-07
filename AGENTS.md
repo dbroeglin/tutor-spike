@@ -83,3 +83,14 @@ two-folder reorganisation into a 241-link migration once already.
 
 Always use `uv` — including for one-off commands (`uvx`, `uv run`). Never `pip install`.
 `scripts/check_env.py` is stdlib-only so it runs with no dependency resolution.
+
+**Never invoke bare `python`, `python3`, `pip` or `pip3`.** Every Python call goes through
+`uv run <script.py>`, `uv run --with <pkg> python -c "..."`, or `uvx <tool>` — one-liners and
+throwaway checks included.
+
+A bare `python` resolves to whatever interpreter happens to be on `PATH`, with none of the
+project's dependencies present. The failure it produces is a *dependency fetch* against the
+wrong environment, which surfaces as a network or proxy error — so the symptom points at the
+network while the cause is the invocation. Do not diagnose such a failure as an outage and do
+not work around it by installing packages; re-run the command under `uv` first. `uv` resolves
+from its own cache and is expected to work offline once warm.
